@@ -1,0 +1,42 @@
+# Xcode
+#
+build/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+*.hmap
+*.xccheckout
+*.xcscmblueprint
+
+# Swift Package Manager
+#
+.swiftpm/
+.build/
+
+# CocoaPods
+#
+Pods/
+*.xcworkspace
+
+# Carthage
+#
+Carthage/Build/
+
+# User-specific Xcode files
+#
+*.xcuserdatad/
+*.xcuserstate
+*.xcuserdata/
+
+# Other Mac/OS files
+#
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
