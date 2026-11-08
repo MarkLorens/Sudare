@@ -7,7 +7,12 @@
 
 import SwiftUI
 
-@main struct SudareApp: App {
+@main
+struct SudareApp: App {
+    
+    @UIApplicationDelegateAdaptor(AppDelegate.self)
+    var appDelegate
+    
     var body: some Scene {
         WindowGroup {
             GlanceView()
