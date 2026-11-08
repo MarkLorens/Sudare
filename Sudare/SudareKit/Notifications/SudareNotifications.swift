@@ -7,6 +7,6 @@
 import Foundation
 
 public enum SudareNotifications {
-    public static let didAcceptCloudKitShare =
-        Notification.Name("didAcceptCloudKitShare")
+    public static let pairsDidChange =
+        Notification.Name("pairsDidChange")
 }

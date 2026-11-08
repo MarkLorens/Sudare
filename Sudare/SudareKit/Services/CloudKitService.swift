@@ -66,4 +66,12 @@ final class CloudKitService {
         }
         return saved
     }
+    
+    func subscribeToPairs() async throws {
+        let sub = CKDatabaseSubscription(subscriptionID: "pairs-changes")
+        let info = CKSubscription.NotificationInfo()
+        info.shouldSendContentAvailable = true
+        sub.notificationInfo = info
+        _ = try await sharedDB.modifySubscriptions(saving: [sub], deleting: [])
+    }
 }

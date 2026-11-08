@@ -37,7 +37,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 
                 print("Successfully accepted Sudare invitation!")
                 NotificationCenter.default.post(
-                    name: SudareNotifications.didAcceptCloudKitShare,
+                    name: SudareNotifications.pairsDidChange,
                     object: nil
                 )
             } catch {
