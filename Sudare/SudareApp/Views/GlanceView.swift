@@ -9,6 +9,8 @@ import SwiftUI
 import CloudKit
 
 struct GlanceView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    
     @State private var availability: DotState = .later
     @AppStorage("displayName") private var name = ""
     @State private var pairs: [Pair] = []
@@ -142,7 +144,8 @@ struct GlanceView: View {
         .task{
             do{
                 try await cloudKit.setUp()
-                pairs = try await cloudKit.fetchPairs()
+                await refreshPairs()
+                try await cloudKit.subscribeToPairs()
                 try await cloudKit.save(name: "test-name", state: availability)
                 shareURL = try await cloudKit.makeShare().url
                 
@@ -152,15 +155,23 @@ struct GlanceView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(
-                for: SudareNotifications.didAcceptCloudKitShare
+                for: SudareNotifications.pairsDidChange
             )
         ) { _ in
-            Task {
-                do{ pairs = try await cloudKit.fetchPairs() }
-                catch {
-                    print("Could not refetch pairs:", error)
-                }
+            Task { await refreshPairs() }
+        }
+        .onChange(of: scenePhase) {_, phase in
+            if phase == .active{
+                Task { await refreshPairs() }
             }
+        }
+    }
+
+    private func refreshPairs() async {
+        do {
+            pairs = try await cloudKit.fetchPairs()
+        } catch {
+            print("Could not fetch pairs:", error)
         }
     }
 }
