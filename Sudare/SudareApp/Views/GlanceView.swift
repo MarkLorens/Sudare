@@ -13,6 +13,8 @@ struct GlanceView: View {
     @AppStorage("displayName") private var name = ""
     @State private var pairs: [Pair] = []
     
+    @State private var shareURL: URL?
+    
     private let cloudKit = CloudKitService()
     
     var body: some View {
@@ -87,7 +89,7 @@ struct GlanceView: View {
                             Text(pair.name)
                                 .font(.system(size: 16, weight: .medium))
                             Spacer()
-                            Text(pair.status.rawValue.capitalized)
+                            Text(pair.status.title)
                                 .font(.system(size: 14, weight: .regular))
                         }
                     }
@@ -109,14 +111,18 @@ struct GlanceView: View {
                 Text("Sudare - Icon")
                 Spacer()
                 // - TODO: REFACTOR THIS
-                ZStack (alignment: .center){
-                    Circle()
-                        .fill(Color(hex: 0x171B21))
-                        .frame(width: 44)
-                    Image(systemName: "person.2")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, alignment: .center)
+                if let shareURL{
+                    ShareLink(item: shareURL){
+                        ZStack (alignment: .center){
+                            Circle()
+                                .fill(Color(hex: 0x171B21))
+                                .frame(width: 44)
+                            Image(systemName: "person.2")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 16, alignment: .center)
+                        }
+                    }
                 }
                 ZStack (alignment: .center){
                     Circle()
@@ -135,10 +141,25 @@ struct GlanceView: View {
         .foregroundStyle(Color(hex: 0xEDEFF2))
         .task{
             do{
-                pairs = try await cloudKit.fetchPairs([CKRecord.ID(recordName: "status-_07ac281aad1096c0b2ed381fde462ea1")])
+                try await cloudKit.setUp()
+                pairs = try await cloudKit.fetchPairs()
+                try await cloudKit.save(name: "test-name", state: availability)
+                shareURL = try await cloudKit.makeShare().url
                 
             } catch {
-                print("Could not fetch pair:", error)
+                print("CloudKit startup failed:", error)
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: SudareNotifications.didAcceptCloudKitShare
+            )
+        ) { _ in
+            Task {
+                do{ pairs = try await cloudKit.fetchPairs() }
+                catch {
+                    print("Could not refetch pairs:", error)
+                }
             }
         }
     }

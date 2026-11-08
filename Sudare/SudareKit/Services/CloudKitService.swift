@@ -11,24 +11,31 @@ import CloudKit
 
 final class CloudKitService {
     private let container = CKContainer(identifier: "iCloud.com.mark.Sudare")
-    private var db: CKDatabase { container.publicCloudDatabase }
     
-    func myRecordID() async throws -> CKRecord.ID {
-        let user = try await container.userRecordID()
-        return CKRecord.ID(recordName: "status-\(user.recordName)")
+    private var privateDB: CKDatabase{ container.privateCloudDatabase }
+    private var sharedDB: CKDatabase { container.sharedCloudDatabase }
+    
+    private let zoneID = CKRecordZone.ID(zoneName: "Status") // owner = current user
+    private var myRecordID: CKRecord.ID { CKRecord.ID(recordName: "status", zoneID: zoneID) }
+    
+    func setUp() async throws { // Call once at launch
+        _ = try await privateDB.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
     }
     
     func save(name: String, state: DotState) async
     throws {
-        let record = CKRecord(recordType: "Status", recordID: try await myRecordID())
+        let record = CKRecord(recordType: "status", recordID: myRecordID)
         record["name"] = name
         record["state"] = state.rawValue
         
-        _ = try await db.modifyRecords(saving: [record], deleting: [], savePolicy: .changedKeys)
+        _ = try await privateDB.modifyRecords(saving: [record], deleting: [], savePolicy: .changedKeys)
     }
     
-    func fetchPairs(_ ids: [CKRecord.ID]) async throws -> [Pair] {
-        let results = try await db.records(for: ids)
+    func fetchPairs() async throws -> [Pair] {
+        // TODO: - Try to eventually validate record type and ownership rather than assuming every shared zone contains a valid Sudare dot.
+        let zones = try await sharedDB.allRecordZones()
+        let ids = zones.map { CKRecord.ID(recordName: "status", zoneID: $0.zoneID) }
+        let results = try await sharedDB.records(for: ids)
         
         return results.values.compactMap { result -> Pair? in
             
@@ -42,5 +49,21 @@ final class CloudKitService {
             
             return Pair(name: name, status: state, id: r.recordID)
         }
+    }
+    
+    func makeShare() async throws -> CKShare {
+        let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
+        
+        if let existing = try? await privateDB.record(for: shareID) as? CKShare { return existing }
+        
+        let share = CKShare(recordZoneID: zoneID)
+        share[CKShare.SystemFieldKey.title] = "Sudare status"
+        share.publicPermission = .readOnly
+        
+        let (results, _) = try await privateDB.modifyRecords(saving: [share], deleting: [])
+        guard let saved = try results[share.recordID]?.get() as? CKShare else{
+            throw CKError(.internalError)
+        }
+        return saved
     }
 }
