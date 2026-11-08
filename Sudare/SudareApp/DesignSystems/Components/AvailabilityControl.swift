@@ -6,23 +6,6 @@
 //
 import SwiftUI
 
-enum Availability: String, Identifiable, CaseIterable{
-    case available = "Available"
-    case later = "Later"
-    var id: Self { self }
-    
-    @ViewBuilder var icon: some View{
-        switch self {
-            case .available:
-                Circle()
-                .fill(Color(hex: 0x7FD8A0))
-                    .frame(width: 16, height: 16)
-            case .later:
-                StripedDot(color: Color(hex: 0xE8A55A))
-        }
-    }
-}
-
 struct StripedDot: View {
     var color: Color
     var body: some View {
@@ -36,13 +19,26 @@ struct StripedDot: View {
     }
 }
 
+extension DotState{
+    @ViewBuilder var icon: some View{
+        switch self {
+            case .available:
+                Circle()
+                .fill(Color(hex: 0x7FD8A0))
+                    .frame(width: 16, height: 16)
+            case .later:
+                StripedDot(color: Color(hex: 0xE8A55A))
+        }
+    }
+}
+
 struct AvailabilityControl: View{
-    @Binding var selection: Availability
+    @Binding var selection: DotState
     @Namespace private var ns
     
     var body: some View{
         HStack(spacing: 0){
-            ForEach(Availability.allCases) { option in
+            ForEach(DotState.allCases) { option in
                 let isSelected = selection == option
                 
                 Button{
@@ -54,7 +50,7 @@ struct AvailabilityControl: View{
                 } label: {
                     HStack {
                         option.icon
-                        Text(option.rawValue)
+                        Text(option.title)
                     }
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(isSelected ? Color(hex:0xEDEff2) : Color(hex: 0x9AA3AD))
@@ -80,7 +76,7 @@ struct AvailabilityControl: View{
 }
 
 #Preview{
-    @Previewable @State var availability: Availability = .available
+    @Previewable @State var availability: DotState = .available
     AvailabilityControl(selection: $availability)
         .foregroundStyle(Color(hex: 0xEDEFF2))
         .padding(.horizontal, 20)

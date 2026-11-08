@@ -6,9 +6,14 @@
 //
 
 import SwiftUI
+import CloudKit
 
 struct GlanceView: View {
-    @State private var availability: Availability = .later
+    @State private var availability: DotState = .later
+    @AppStorage("displayName") private var name = ""
+    @State private var pairs: [Pair] = []
+    
+    private let cloudKit = CloudKitService()
     
     var body: some View {
         VStack(spacing: 24){
@@ -31,6 +36,15 @@ struct GlanceView: View {
             
             VStack(spacing: 12){
                 AvailabilityControl(selection: $availability)
+                    .onChange(of: availability){_, newValue in
+                        Task{
+                            do {
+                                try await cloudKit.save(name: "test-name", state: newValue)
+                            } catch {
+                                print("CloudKit save failed:", error)
+                            }
+                        }
+                    }
                 HStack(alignment: .center){
                     if (availability == .available)
                     {
@@ -67,22 +81,15 @@ struct GlanceView: View {
                 }
                 .padding(4)
                 VStack{
-                    HStack{
-                        Text("Icon")
-                        Text("Mom")
-                            .font(.system(size: 16, weight: .medium))
-                        Spacer()
-                        Text("Available")
-                            .font(.system(size: 14, weight: .regular))
-                    }
-                    Divider()
-                    HStack{
-                        Text("Icon")
-                        Text("Dana")
-                            .font(.system(size: 16, weight: .medium))
-                        Spacer()
-                        Text("Later")
-                            .font(.system(size: 14, weight: .regular))
+                    ForEach(pairs) { pair in
+                        HStack{
+                            Text("Icon")
+                            Text(pair.name)
+                                .font(.system(size: 16, weight: .medium))
+                            Spacer()
+                            Text(pair.status.rawValue.capitalized)
+                                .font(.system(size: 14, weight: .regular))
+                        }
                     }
                 }
                 .padding(16)
@@ -126,9 +133,13 @@ struct GlanceView: View {
             .padding(.bottom, 30)
         }
         .foregroundStyle(Color(hex: 0xEDEFF2))
+        .task{
+            do{
+                pairs = try await cloudKit.fetchPairs([CKRecord.ID(recordName: "status-_07ac281aad1096c0b2ed381fde462ea1")])
+                
+            } catch {
+                print("Could not fetch pair:", error)
+            }
+        }
     }
-}
-
-#Preview {
-    GlanceView()
 }
