@@ -11,13 +11,17 @@ import CloudKit
 struct GlanceView: View {
     @Environment(\.scenePhase) private var scenePhase
     
-    @State private var availability: DotState = .later
-    @AppStorage("displayName") private var name = ""
+    @AppStorage("dotState", store: .sudare) private var availability: DotState = .later
+    @AppStorage("displayName", store: .sudare) private var name = ""
     @State private var pairs: [Pair] = []
     
     @State private var shareURL: URL?
     
     private let cloudKit = CloudKitService()
+
+    init(pairs: [Pair] = []) {
+        _pairs = State(initialValue: pairs)
+    }
     
     var body: some View {
         VStack(spacing: 24){
@@ -39,16 +43,13 @@ struct GlanceView: View {
             }
             
             VStack(spacing: 12){
-                AvailabilityControl(selection: $availability)
-                    .onChange(of: availability){_, newValue in
-                        Task{
-                            do {
-                                try await cloudKit.save(name: "test-name", state: newValue)
-                            } catch {
-                                print("CloudKit save failed:", error)
-                            }
+                AvailabilityControl(selection: Binding(
+                    get: { availability },
+                    set: { new in Task {
+                        try? await ToggleDotIntent(state: new).perform()
                         }
                     }
+                ))
                 HStack(alignment: .center){
                     if (availability == .available)
                     {
@@ -142,11 +143,13 @@ struct GlanceView: View {
         }
         .foregroundStyle(Color(hex: 0xEDEFF2))
         .task{
+            // Previews must not touch real CloudKit (it would overwrite your status record).
+            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" else { return }
             do{
                 try await cloudKit.setUp()
                 await refreshPairs()
                 try await cloudKit.subscribeToPairs()
-                try await cloudKit.save(name: "test-name", state: availability)
+                try await cloudKit.save(name: name, state: availability)
                 shareURL = try await cloudKit.makeShare().url
                 
             } catch {
@@ -174,4 +177,11 @@ struct GlanceView: View {
             print("Could not fetch pairs:", error)
         }
     }
+}
+
+#Preview {
+    GlanceView(pairs: [
+        Pair(name: "Aiko", status: .available, id: CKRecord.ID(recordName: "aiko")),
+        Pair(name: "Ren", status: .later, id: CKRecord.ID(recordName: "ren")),
+    ])
 }
